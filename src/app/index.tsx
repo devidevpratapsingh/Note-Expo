@@ -103,6 +103,24 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  noteActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 14,
+  },
+
+  actionButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+
+  actionButtonText: {
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+
   buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -268,6 +286,22 @@ const ClassNotes = () => {
     setEditingId(note.id);
   };
 
+  const handleDelete = (id: string) => {
+    Alert.alert("Delete note", "Are you sure you want to delete this note?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          setNotes((prev) => prev.filter((note) => note.id !== id));
+          if (editingId === id) {
+            resetEditor();
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
@@ -430,6 +464,50 @@ const ClassNotes = () => {
                 >
                   {item.date}
                 </Text>
+
+                <View style={styles.noteActions}>
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => handleNotePress(item)}
+                    style={[
+                      styles.actionButton,
+                      {
+                        backgroundColor:
+                          editingId === item.id ? "rgba(255,255,255,0.25)" : theme.accent,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.actionButtonText,
+                        { color: "white" },
+                      ]}
+                    >
+                      Update
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => handleDelete(item.id)}
+                    style={[
+                      styles.actionButton,
+                      {
+                        backgroundColor:
+                          editingId === item.id ? "rgba(255,255,255,0.25)" : "#C45C5C",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.actionButtonText,
+                        { color: "white" },
+                      ]}
+                    >
+                      Delete
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </Pressable>
             ))}
           </View>
