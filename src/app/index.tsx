@@ -1,7 +1,8 @@
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import {
-  FlatList,
+  Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,6 +11,7 @@ import {
   Switch,
   Text,
   TextInput,
+  TouchableOpacity,
   useColorScheme,
   useWindowDimensions,
   View,
@@ -142,28 +144,32 @@ const themes = {
   },
 };
 
-const notesData = [
+type Note = {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+};
+
+const initialNotes: Note[] = [
   {
     id: "1",
     title: "React Native",
     content: "Learn FlatList and responsive layouts.",
     date: "13 May 2026",
   },
-
   {
     id: "2",
     title: "Assignment",
     content: "Complete notes app UI using Expo.",
     date: "12 May 2026",
   },
-
   {
     id: "3",
     title: "Dark Mode",
     content: "Implement useColorScheme properly.",
     date: "10 May 2026",
   },
-
   {
     id: "4",
     title: "JavaScript",
@@ -171,6 +177,14 @@ const notesData = [
     date: "08 May 2026",
   },
 ];
+
+function formatNoteDate(date: Date) {
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
 
 const ClassNotes = () => {
   const systemScheme = useColorScheme();
@@ -183,13 +197,76 @@ const ClassNotes = () => {
 
   const [search, setSearch] = useState("");
 
+  const [notes, setNotes] = useState<Note[]>(initialNotes);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   const isDark = manualDark !== null ? manualDark : systemScheme === "dark";
 
   const theme = isDark ? themes.dark : themes.light;
 
-  const filteredNotes = notesData.filter((note) =>
+  const filteredNotes = notes.filter((note) =>
     note.title.toLowerCase().includes(search.toLowerCase()),
   );
+
+  const resetEditor = () => {
+    setTitle("");
+    setBody("");
+    setEditingId(null);
+  };
+
+  const handleSave = () => {
+    Keyboard.dismiss();
+
+    const trimmedTitle = title.trim();
+    const trimmedBody = body.trim();
+
+    if (!trimmedTitle && !trimmedBody) {
+      Alert.alert(
+        "Empty note",
+        "Please enter a title or note text before saving.",
+      );
+      return;
+    }
+
+    if (editingId) {
+      setNotes((prev) =>
+        prev.map((note) =>
+          note.id === editingId
+            ? {
+                ...note,
+                title: trimmedTitle || "Untitled",
+                content: trimmedBody,
+              }
+            : note,
+        ),
+      );
+    } else {
+      setNotes((prev) => [
+        {
+          id: String(Date.now()),
+          title: trimmedTitle || "Untitled",
+          content: trimmedBody,
+          date: formatNoteDate(new Date()),
+        },
+        ...prev,
+      ]);
+    }
+
+    resetEditor();
+  };
+
+  const handleBack = () => {
+    Keyboard.dismiss();
+    resetEditor();
+  };
+
+  const handleNotePress = (note: Note) => {
+    setTitle(note.title);
+    setBody(note.content);
+    setEditingId(note.id);
+  };
 
   return (
     <SafeAreaView
@@ -199,6 +276,8 @@ const ClassNotes = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         <View style={[styles.headerCard, { backgroundColor: theme.card }]}>
@@ -244,12 +323,14 @@ const ClassNotes = () => {
             style={[styles.editorContainer, { backgroundColor: theme.card }]}
           >
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Create Note
+              {editingId ? "Edit Note" : "Create Note"}
             </Text>
 
             <TextInput
               placeholder="Note title"
               placeholderTextColor={theme.subtext}
+              value={title}
+              onChangeText={setTitle}
               style={[
                 styles.titleInput,
                 {
@@ -263,6 +344,8 @@ const ClassNotes = () => {
               placeholder="Write your note..."
               placeholderTextColor={theme.subtext}
               multiline
+              value={body}
+              onChangeText={setBody}
               style={[
                 styles.bodyInput,
                 {
@@ -273,17 +356,21 @@ const ClassNotes = () => {
             />
 
             <View style={styles.buttonRow}>
-              <Pressable
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={handleBack}
                 style={[styles.button, { backgroundColor: "#8A817C" }]}
               >
                 <Text style={styles.buttonText}>Back</Text>
-              </Pressable>
+              </TouchableOpacity>
 
-              <Pressable
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={handleSave}
                 style={[styles.button, { backgroundColor: theme.accent }]}
               >
                 <Text style={styles.buttonText}>Save</Text>
-              </Pressable>
+              </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -293,38 +380,59 @@ const ClassNotes = () => {
             Notes List
           </Text>
 
-          <FlatList
-            data={filteredNotes}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            contentContainerStyle={{ gap: 14 }}
-            renderItem={({ item }) => (
+          <View style={{ gap: 14 }}>
+            {filteredNotes.map((item) => (
               <Pressable
+                key={item.id}
+                onPress={() => handleNotePress(item)}
                 style={[
                   styles.noteCard,
                   {
-                    backgroundColor: theme.input,
+                    backgroundColor:
+                      editingId === item.id ? theme.accent : theme.input,
                     width: isTablet ? width / 2.2 : "100%",
                   },
                 ]}
               >
-                <Text style={[styles.noteTitle, { color: theme.text }]}>
+                <Text
+                  style={[
+                    styles.noteTitle,
+                    {
+                      color: editingId === item.id ? "white" : theme.text,
+                    },
+                  ]}
+                >
                   {item.title}
                 </Text>
 
                 <Text
-                  style={[styles.noteContent, { color: theme.subtext }]}
+                  style={[
+                    styles.noteContent,
+                    {
+                      color:
+                        editingId === item.id
+                          ? "rgba(255,255,255,0.9)"
+                          : theme.subtext,
+                    },
+                  ]}
                   numberOfLines={2}
                 >
                   {item.content}
                 </Text>
 
-                <Text style={[styles.noteDate, { color: theme.accent }]}>
+                <Text
+                  style={[
+                    styles.noteDate,
+                    {
+                      color: editingId === item.id ? "white" : theme.accent,
+                    },
+                  ]}
+                >
                   {item.date}
                 </Text>
               </Pressable>
-            )}
-          />
+            ))}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
